@@ -13,6 +13,8 @@ const MusicSchema = new mongoose.Schema({
     type: String, // Store the file path or file URL
     required: true,
   },
+  playlistIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Playlist' }], // Array of playlist IDs
+  userIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Array of user IDs
 });
 
 module.exports = mongoose.model('Music', MusicSchema);

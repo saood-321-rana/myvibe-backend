@@ -22,9 +22,11 @@ const playlistSongsRoutes = require('./routes/playlistSongs');
 const authRoutes = require('./routes/auth');
 const musicRoutes = require('./routes/music');
 const playlistRoutes = require('./routes/playlistRoutes');
+const getsongRoutes = require('./routes/getSongsRoutes');
 
 // Define Routes
 app.use('/api/playlist-songs', playlistSongsRoutes); 
+app.use('/api/playlist', getsongRoutes); 
 app.use('/api/auth', authRoutes);
 app.use('/api/music', musicRoutes);
 app.use('/api/playlists', playlistRoutes);

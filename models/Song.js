@@ -12,6 +12,7 @@ const SongSchema = new mongoose.Schema({
   songFile: {
     type: String, // URL or path to the song file
   },
+  
 });
 
 module.exports = mongoose.model('Song', SongSchema);
