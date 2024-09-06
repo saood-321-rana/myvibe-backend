@@ -53,4 +53,29 @@ const getSongsByPlaylist = async (req, res) => {
   }
 };
 
-module.exports = { getSongsByPlaylist };
+/// Fetch all songs of the currently logged-in user, sorted by artistName
+const getAllSongsForUser = async (req, res) => {
+  try {
+    const { userId } = req.query; // Get userId from query string
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: 'Invalid user ID.' });
+    }
+
+    console.log('Fetching all songs for user:', userId);
+
+    // Find all songs for the user, sorted by artistName in ascending order
+    const songs = await Music.find({ userIds: userId }).sort({ artistName: 1 });
+
+    if (!songs.length) {
+      return res.status(404).json({ msg: 'No songs found for this user.' });
+    }
+
+    res.json(songs);
+  } catch (error) {
+    console.error('Error fetching all songs for user:', error.message);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+};
+
+
+module.exports = { getSongsByPlaylist, getAllSongsForUser };
