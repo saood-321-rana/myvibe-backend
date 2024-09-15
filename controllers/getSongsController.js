@@ -104,10 +104,9 @@ const getAllSongsByUserNoAuth = async (req, res) => {
   }
 };
 
-// Add song to queue
 const addToQueue = async (req, res) => {
   try {
-    const { songId, userId } = req.body; // Extract songId and userId from the request body
+    const { songId, userId, status } = req.body; // Receive status from the frontend
 
     // Log the incoming request body for debugging
     console.log('Request body:', req.body);
@@ -118,9 +117,8 @@ const addToQueue = async (req, res) => {
     }
 
     // Validate userId if provided
-    let status = 0;
-    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
-      status = 1;
+    if (userId && !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: 'Invalid user ID.' });
     }
 
     // Find the song in the Music collection
@@ -129,11 +127,11 @@ const addToQueue = async (req, res) => {
       return res.status(404).json({ msg: 'Song not found.' });
     }
 
-    // Create a new entry in the Queue collection with songId, userId (if provided), and status
+    // Create a new entry in the Queue collection with songId, userId, and status
     const newQueueEntry = new Queue({
-      songId: song._id, // Store the song's ObjectId
-      userId: userId || null, // If userId is provided, store it, otherwise null
-      status: status
+      songId: song._id,
+      userId: userId || null, 
+      status: status // Use the status sent from the frontend
     });
 
     // Save the queue entry
@@ -145,6 +143,7 @@ const addToQueue = async (req, res) => {
     res.status(500).json({ msg: 'Server Error' });
   }
 };
+
 
 
 // Fetch all songs in the queue for a specific user with status 1
@@ -174,4 +173,59 @@ const getQueueSongsForUser = async (req, res) => {
   }
 };
 
-module.exports = { getSongsByPlaylist, getAllSongsForUser, getAllSongsByUserNoAuth, addToQueue, getQueueSongsForUser };
+// Fetch all songs in the queue for a specific user with status 1
+const getQueueSongsRequests = async (req, res) => {
+  try {
+    const { userId } = req.query; // Extract userId from query parameters
+
+    // Validate userId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: 'Invalid user ID.' });
+    }
+
+    // Find all queue entries for the given userId and status 1
+    const queueEntries = await Queue.find({ userId, status: 0 }).populate('songId');
+
+    if (!queueEntries.length) {
+      return res.status(404).json({ msg: 'No songs with status 0 found in the queue for this user.' });
+    }
+
+    // Extract songs from queue entries
+    const songs = queueEntries.map(entry => entry.songId);
+
+    res.json(songs);
+  } catch (error) {
+    console.error('Error fetching queue songs:', error.message);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+};
+
+// Update song status from 0 to 1
+const updateSongStatus = async (req, res) => {
+  try {
+    const { songId } = req.body; // Extract songId from the request body
+
+    // Validate songId
+    if (!mongoose.Types.ObjectId.isValid(songId)) {
+      return res.status(400).json({ msg: 'Invalid song ID.' });
+    }
+
+    // Find the queue entry for the song and user
+    const queueEntry = await Queue.findOne({ songId, status: 0 });
+
+    if (!queueEntry) {
+      return res.status(404).json({ msg: 'Queue entry not found or already updated.' });
+    }
+
+    // Update status to 1
+    queueEntry.status = 1;
+    await queueEntry.save();
+
+    res.json({ msg: 'Song status updated to 1 successfully.' });
+  } catch (error) {
+    console.error('Error updating song status:', error.message);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+};
+
+module.exports = { getSongsByPlaylist, getAllSongsForUser, getAllSongsByUserNoAuth, addToQueue, getQueueSongsForUser, getQueueSongsRequests, updateSongStatus };

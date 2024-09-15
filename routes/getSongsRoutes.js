@@ -6,7 +6,9 @@ const {
   getAllSongsForUser, 
   getAllSongsByUserNoAuth, 
   addToQueue,
-  getQueueSongsForUser 
+  getQueueSongsForUser,
+  getQueueSongsRequests,
+  updateSongStatus // Import the new function
 } = require('../controllers/getSongsController');
 
 // @route   GET /api/playlist-songs/:playlistId
@@ -27,12 +29,22 @@ router.get('/public-user-songs', getAllSongsByUserNoAuth);
 // @route   POST /api/add-to-queue
 // @desc    Add a song to the queue for the logged-in user
 // @access  Private
-router.post('/add-to-queue', addToQueue);
+router.post('/add-to-queue', addToQueue); // Ensure authentication is applied if needed
+
 
 // @route   GET /api/queue-songs
 // @desc    Get all songs in the queue for the logged-in user
 // @access  Private
-router.get('/queue-songs', auth, getQueueSongsForUser);
+router.get('/queue-songs', getQueueSongsForUser);
 
+// @route   GET /api/queue-songs-requests
+// @desc    Get all song requests with status 0 for the logged-in user
+// @access  Private
+router.get('/queue-songs-requests', auth, getQueueSongsRequests);
+
+// @route   PUT /api/update-song-status
+// @desc    Update the status of a song from 0 to 1
+// @access  Private
+router.put('/update-song-status', auth, updateSongStatus); // Add auth if required
 
 module.exports = router;
