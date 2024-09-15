@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const PlaylistSong = require('../models/PlaylistSong'); // Adjust path as necessary
 const Music = require('../models/Music'); // Adjust path as necessary
+const Queue = require('../models/Queue'); // Adjust path as necessary
 
 // Fetch songs for a specific playlist
 const getSongsByPlaylist = async (req, res) => {
@@ -53,7 +54,7 @@ const getSongsByPlaylist = async (req, res) => {
   }
 };
 
-/// Fetch all songs of the currently logged-in user, sorted by artistName
+// Fetch all songs of the currently logged-in user, sorted by artistName
 const getAllSongsForUser = async (req, res) => {
   try {
     const { userId } = req.query; // Get userId from query string
@@ -77,5 +78,100 @@ const getAllSongsForUser = async (req, res) => {
   }
 };
 
+// Fetch all songs of a user without requiring authentication
+const getAllSongsByUserNoAuth = async (req, res) => {
+  try {
+    const { userId } = req.query; // Get userId from query string
 
-module.exports = { getSongsByPlaylist, getAllSongsForUser };
+    // Validate userId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: 'Invalid user ID.' });
+    }
+
+    console.log('Fetching all songs for user without auth:', userId);
+
+    // Find all songs for the user, sorted by artistName in ascending order
+    const songs = await Music.find({ userIds: userId }).sort({ artistName: 1 });
+
+    if (!songs.length) {
+      return res.status(404).json({ msg: 'No songs found for this user.' });
+    }
+
+    res.json(songs);
+  } catch (error) {
+    console.error('Error fetching all songs for user without auth:', error.message);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+};
+
+// Add song to queue
+const addToQueue = async (req, res) => {
+  try {
+    const { songId, userId } = req.body; // Extract songId and userId from the request body
+
+    // Log the incoming request body for debugging
+    console.log('Request body:', req.body);
+
+    // Validate songId
+    if (!mongoose.Types.ObjectId.isValid(songId)) {
+      return res.status(400).json({ msg: 'Invalid song ID.' });
+    }
+
+    // Validate userId if provided
+    let status = 0;
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      status = 1;
+    }
+
+    // Find the song in the Music collection
+    const song = await Music.findById(songId);
+    if (!song) {
+      return res.status(404).json({ msg: 'Song not found.' });
+    }
+
+    // Create a new entry in the Queue collection with songId, userId (if provided), and status
+    const newQueueEntry = new Queue({
+      songId: song._id, // Store the song's ObjectId
+      userId: userId || null, // If userId is provided, store it, otherwise null
+      status: status
+    });
+
+    // Save the queue entry
+    await newQueueEntry.save();
+
+    res.status(201).json({ msg: 'Song added to queue successfully.' });
+  } catch (error) {
+    console.error('Error adding song to queue:', error.message);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+};
+
+
+// Fetch all songs in the queue for a specific user with status 1
+const getQueueSongsForUser = async (req, res) => {
+  try {
+    const { userId } = req.query; // Extract userId from query parameters
+
+    // Validate userId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ msg: 'Invalid user ID.' });
+    }
+
+    // Find all queue entries for the given userId and status 1
+    const queueEntries = await Queue.find({ userId, status: 1 }).populate('songId');
+
+    if (!queueEntries.length) {
+      return res.status(404).json({ msg: 'No songs with status 1 found in the queue for this user.' });
+    }
+
+    // Extract songs from queue entries
+    const songs = queueEntries.map(entry => entry.songId);
+
+    res.json(songs);
+  } catch (error) {
+    console.error('Error fetching queue songs:', error.message);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+};
+
+module.exports = { getSongsByPlaylist, getAllSongsForUser, getAllSongsByUserNoAuth, addToQueue, getQueueSongsForUser };

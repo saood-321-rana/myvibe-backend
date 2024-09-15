@@ -45,4 +45,51 @@ const addSongToPlaylist = async (req, res) => {
   }
 };
 
-module.exports = { addSongToPlaylist };
+// Delete Song from Playlist
+const deleteSongFromPlaylist = async (req, res) => {
+  const { songId, playlistId } = req.body; // Note: Ensure the request body contains both songId and playlistId
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(songId) || !mongoose.Types.ObjectId.isValid(playlistId)) {
+      return res.status(400).json({ msg: 'Invalid song or playlist ID.' });
+    }
+
+    // Check if the song is in the playlist
+    const existingPlaylistSong = await PlaylistSong.findOne({ song: songId, playlist: playlistId });
+    if (!existingPlaylistSong) {
+      return res.status(404).json({ msg: 'Song not found in the playlist.' });
+    }
+
+    // Delete the PlaylistSong document
+    await PlaylistSong.deleteOne({ song: songId, playlist: playlistId });
+
+    // Update Music document to remove playlistId
+    await Music.findByIdAndUpdate(
+      songId,
+      {
+        $pull: { playlistIds: playlistId },
+      },
+      { new: true, runValidators: true }
+    );
+
+    // Optionally, remove the userId from the Music document if no other playlists are associated with this user
+    const music = await Music.findById(songId);
+    if (music && music.playlistIds.length === 0) {
+      await Music.findByIdAndUpdate(
+        songId,
+        {
+          $pull: { userIds: req.user.id },
+        },
+        { new: true, runValidators: true }
+      );
+    }
+
+    res.json({ msg: 'Song removed from playlist successfully!' });
+  } catch (error) {
+    console.error('Error removing song from playlist:', error.message);
+    res.status(500).send('Server Error');
+  }
+};
+
+
+module.exports = { addSongToPlaylist, deleteSongFromPlaylist };

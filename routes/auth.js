@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { signup, login, getAllUsers, deleteUser } = require('../controllers/authController');
+const { signup, login, getAllUsers, deleteUser, updateUserProfile, getUserProfile } = require('../controllers/authController');
 const auth = require('../middleware/auth');
 
 // @route   POST api/auth/signup
@@ -22,5 +22,16 @@ router.get('/users', auth, getAllUsers);
 // @desc    Delete user
 // @access  Private
 router.delete('/users/:id', auth, deleteUser);
+
+// @route   PUT api/users/me
+// @desc    Update user profile
+// @access  Private
+router.put('/users/me', auth, updateUserProfile);
+
+// @route   GET api/users/me
+// @desc    Get the profile of the currently logged-in user
+// @access  Private
+router.get('/users/profile', auth, getUserProfile);
+
 
 module.exports = router;

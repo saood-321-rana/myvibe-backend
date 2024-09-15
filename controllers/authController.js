@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const auth = require('../middleware/auth'); // Import the auth middleware
 
 // @desc    Register a new user
 // @route   POST api/auth/signup
@@ -18,8 +19,8 @@ const signup = async (req, res) => {
       return res.status(400).json({ msg: 'User already exists' });
     }
 
-    // const hashedPassword = await bcrypt.hash(password, 10);
-    // console.log('Hashed password during signup:', hashedPassword);
+    // Hash the password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
       name,
@@ -29,7 +30,7 @@ const signup = async (req, res) => {
       venueType,
       address,
       role,
-      password,
+      password: hashedPassword, // Store hashed password
     });
 
     await newUser.save();
@@ -39,6 +40,8 @@ const signup = async (req, res) => {
 
     res.json({
       token,
+      userId: newUser._id,     // Include userId in response
+      userName: newUser.name,  // Include userName in response
       venueType: newUser.venueType,
     });
   } catch (err) {
@@ -46,7 +49,6 @@ const signup = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
-
 // @desc    Authenticate user and get token
 // @route   POST api/auth/login
 // @access  Public
@@ -100,17 +102,15 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-// @desc    Delete a user
+/// @desc    Delete a user
 // @route   DELETE api/users/:id
 // @access  Private
 const deleteUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findByIdAndDelete(req.params.id);
     if (!user) {
       return res.status(404).json({ msg: 'User not found' });
     }
-
-    await user.remove();
     res.json({ msg: 'User removed' });
   } catch (err) {
     console.error('Error deleting user:', err);
@@ -118,4 +118,56 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, getAllUsers, deleteUser };
+
+// @desc    Update user profile
+// @route   PUT api/users/me
+// @access  Private
+const updateUserProfile = async (req, res) => {
+  const { name, email, phone, venueName, venueType, address } = req.body;
+
+  try {
+    // Find the logged-in user using the token
+    const user = await User.findById(req.user.id); // req.user.id comes from the auth middleware
+
+    // if (!user) {
+    //   return res.status(404).json({ msg: 'User not found' });
+    // }
+
+    // Update user fields
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.phone = phone || user.phone;
+    user.venueName = venueName || user.venueName;
+    user.venueType = venueType || user.venueType;
+    user.address = address || user.address;
+
+    await user.save();
+
+    res.json(user);
+  } catch (err) {
+    console.error('Error updating user profile:', err);
+    res.status(500).send('Server error');
+  }
+};
+
+// @desc    Get the profile of the currently logged-in user
+// @route   GET api/users/me
+// @access  Private
+const getUserProfile = async (req, res) => {
+  try {
+    // Find the logged-in user using the token
+    const user = await User.findById(req.user.id).select('-password'); // Exclude password from the response
+
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error('Error fetching user profile:', err);
+    res.status(500).send('Server error');
+  }
+};
+
+module.exports = { signup, login, getAllUsers, deleteUser, updateUserProfile, getUserProfile };
+
